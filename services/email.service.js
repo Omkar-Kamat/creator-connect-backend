@@ -1,5 +1,3 @@
-import dotenv from "dotenv"
-dotenv.config()
 import getTransporter from "../config/mailer.js";
 
 class EmailService {
@@ -20,8 +18,6 @@ class EmailService {
         await transporter.sendMail(mailOptions);
     }
 }
-
-EmailService.sendOtpEmail("omkar.12320650@lpu.in","456465")
 
 
 export default EmailService;

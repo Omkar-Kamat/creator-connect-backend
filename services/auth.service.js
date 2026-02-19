@@ -9,9 +9,7 @@ import {
 } from "../utils/otp.js";
 
 import {
-    generateAccessToken,
-    generateRefreshToken,
-    verifyRefreshToken,
+    generateAccessToken
 } from "../utils/jwt.js";
 
 import EmailService from "./email.service.js";
@@ -113,26 +111,13 @@ class AuthService {
     }
 
     // login
-    static async login(identifier, password) {
-        const normalizedIdentifier = identifier.toLowerCase();
+    static async login(email, password) {
+        const normalizedEmail = email.toLowerCase();
 
-        const user = await User.findOne({
-            $or: [
-                { email: normalizedIdentifier },
-                { mobileNumber: identifier },
-            ],
-        }).select("+password");
+        const user = await User.findOne({email: normalizedEmail}).select("+password");
 
         if (!user) {
             throw new AppError("Invalid credentials", 401);
-        }
-
-        if (!user.isVerified) {
-            throw new AppError("Account not verified", 403);
-        }
-
-        if (user.isCurrentlyBanned()) {
-            throw new AppError("Account is banned", 403);
         }
 
         const isMatch = await user.comparePassword(password);
@@ -147,92 +132,14 @@ class AuthService {
         };
 
         const accessToken = generateAccessToken(payload);
-        const refreshToken = generateRefreshToken(payload);
 
-        user.refreshToken = refreshToken;
         await user.save();
 
         return {
-            accessToken,
-            refreshToken,
+            accessToken
         };
     }
-
-    // refresh token
-    static async refresh(refreshTokenFromCookie) {
-        if (!refreshTokenFromCookie) {
-            throw new AppError("Refresh token missing", 401);
-        }
-
-        let decoded;
-        try {
-            decoded = verifyRefreshToken(refreshTokenFromCookie);
-        } catch {
-            throw new AppError("Invalid refresh token", 401);
-        }
-
-        const user = await User.findById(decoded.userId).select(
-            "+refreshToken",
-        );
-
-        if (!user || user.refreshToken !== refreshTokenFromCookie) {
-            throw new AppError("Invalid refresh token", 401);
-        }
-
-        if (user.isCurrentlyBanned()) {
-            throw new AppError("Account is banned", 403);
-        }
-
-        const payload = {
-            userId: user._id,
-            role: user.role,
-        };
-
-        const newAccessToken = generateAccessToken(payload);
-
-        return {
-            accessToken: newAccessToken,
-        };
-    }
-
-    // logout
-    static async logout(userId) {
-        const user = await User.findById(userId).select("+refreshToken");
-
-        if (user) {
-            user.refreshToken = null;
-            await user.save();
-        }
-
-        return { message: "Logged out successfully" };
-    }
-
-    // logout by refresh token
-    static async logoutByToken(refreshTokenFromCookie) {
-        if (!refreshTokenFromCookie) {
-            throw new AppError("Refresh token missing", 401);
-        }
-
-        let decoded;
-        try {
-            decoded = verifyRefreshToken(refreshTokenFromCookie);
-        } catch {
-            throw new AppError("Invalid refresh token", 401);
-        }
-
-        const user = await User.findById(decoded.userId).select(
-            "+refreshToken",
-        );
-
-        if (!user || user.refreshToken !== refreshTokenFromCookie) {
-            throw new AppError("Invalid refresh token", 401);
-        }
-
-        user.refreshToken = null;
-        await user.save();
-
-        return { message: "Logged out successfully" };
-    }
+    
 }
 
 export default AuthService;
