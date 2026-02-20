@@ -1,11 +1,38 @@
 import bcrypt from "bcrypt";
 
-const SALT_ROUNDS = 12;
+export class PasswordService {
+    constructor() {
+        this.SALT_ROUNDS = 12;
+    }
 
-export const hashPassword = async (plainPassword) => {
-  return await bcrypt.hash(plainPassword, SALT_ROUNDS);
-};
+    async hashPassword(plainPassword) {
+        try {
+            if (!plainPassword) {
+                throw new Error("Password is required");
+            }
 
-export const comparePassword = async (plainPassword, hashedPassword) => {
-  return await bcrypt.compare(plainPassword, hashedPassword);
-};
+            return await bcrypt.hash(plainPassword, this.SALT_ROUNDS);
+        } catch (error) {
+            console.error("PasswordService.hashPassword Error:", error.message);
+            throw error;
+        }
+    }
+
+    async comparePassword(plainPassword, hashedPassword) {
+        try {
+            if (!plainPassword || !hashedPassword) {
+                throw new Error("Both passwords are required");
+            }
+
+            return await bcrypt.compare(plainPassword, hashedPassword);
+        } catch (error) {
+            console.error(
+                "PasswordService.comparePassword Error:",
+                error.message,
+            );
+            throw error;
+        }
+    }
+}
+
+export const passwordService = new PasswordService();

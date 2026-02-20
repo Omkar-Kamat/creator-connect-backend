@@ -1,145 +1,91 @@
-import User from "../models/User.js";
-import Otp from "../models/Otp.js";
+import { User } from "../models/user.model.js";
+import bcrypt from "bcryptjs";
+import generateToken from "../utils/generateToken.js";
 
-import {
-    generateOtp,
-    hashOtp,
-    getOtpExpiry,
-    compareOtp,
-} from "../utils/otp.js";
+export class AuthService {
 
-import {
-    generateAccessToken
-} from "../utils/jwt.js";
+  async registerUser({ name, email, password }) {
 
-import EmailService from "./email.service.js";
-import AppError from "../utils/appError.js";
+    try {
 
-class AuthService {
-    // register
-    static async register(data) {
-        const { name, email, password } =
-            data;
+      if (!name || !email || !password) {
+        throw new Error("All fields are required");
+      }
 
-        const normalizedEmail = email.toLowerCase();
+      const normalizedEmail = email.toLowerCase().trim();
 
-        const existingUser = await User.findOne({email: normalizedEmail});
+      const existingUser = await User.findOne({ email: normalizedEmail });
 
-        if (existingUser) {
-            throw new AppError("User already exists", 409);
-        }
+      if (existingUser) {
+        throw new Error("Email already exists");
+      }
 
-        const session = await User.startSession();
-        session.startTransaction();
+      const hashedPassword = await bcrypt.hash(password, 10);
 
-        try {
-            const user = await User.create(
-                [
-                    {
-                        name,
-                        email: normalizedEmail,
-                        password
-                    },
-                ],
-                { session },
-            );
+      const user = await User.create({
+        name,
+        email: normalizedEmail,
+        password: hashedPassword
+      });
 
-            const otp = generateOtp();
-            const hashedOtp = await hashOtp(otp);
+      const token = generateToken(user._id);
 
-            await Otp.create(
-                [
-                    {
-                        email,
-                        hashedOtp,
-                        expiresAt: getOtpExpiry(),
-                    },
-                ],
-                { session },
-            );
+      const safeUser = await User.findById(user._id).select("-password");
 
-            await EmailService.sendOtpEmail(normalizedEmail, otp);
+      return {
+        user: safeUser,
+        token
+      };
 
-            await session.commitTransaction();
-            session.endSession();
+    } catch (error) {
 
-            return {
-                message: "Registration successful. OTP sent for verification.",
-            };
-        } catch (err) {
-            await session.abortTransaction();
-            session.endSession();
-            throw err;
-        }
+      console.error("AuthService.registerUser Error:", error.message);
+      throw error;
+
     }
 
-    // verify otp
-    static async verifyAccount(email, otpInput) {
-        const normalizedEmail = email.toLowerCase();
+  }
 
-        const user = await User.findOne({email: normalizedEmail});
+  async loginUser({ email, password }) {
 
-        if (!user) {
-            throw new AppError("User not found", 404);
-        }
+    try {
 
-        const otpRecord = await Otp.findOne({
-         email: normalizedEmail
-        }).select("+hashedOtp");
+      if (!email || !password) {
+        throw new Error("Email and password are required");
+      }
 
-        if (!otpRecord) {
-            throw new AppError("OTP not found or expired", 400);
-        }
+      const normalizedEmail = email.toLowerCase().trim();
 
-        if (otpRecord.expiresAt < new Date()) {
-            throw new AppError("OTP expired", 400);
-        }
+      const user = await User.findOne({ email: normalizedEmail });
 
-        const isMatch = await compareOtp(otpInput, otpRecord.hashedOtp);
+      if (!user) {
+        throw new Error("Invalid credentials");
+      }
 
-        if (!isMatch) {
-            throw new AppError("Invalid OTP", 400);
-        }
+      const isMatch = await bcrypt.compare(password, user.password);
 
-        await user.save();
+      if (!isMatch) {
+        throw new Error("Invalid credentials");
+      }
 
-        await Otp.deleteOne({ _id: otpRecord._id });
+      const token = generateToken(user._id);
 
-        return {
-            message: "Account verified successfully",
-        };
+      const safeUser = await User.findById(user._id).select("-password");
+
+      return {
+        user: safeUser,
+        token
+      };
+
+    } catch (error) {
+
+      console.error("AuthService.loginUser Error:", error.message);
+      throw error;
+
     }
 
-    // login
-    static async login(email, password) {
-        const normalizedEmail = email.toLowerCase();
+  }
 
-        const user = await User.findOne({email: normalizedEmail}).select("+password");
-
-        if (!user) {
-            throw new AppError("Invalid credentials", 401);
-        }
-
-        const isMatch = await user.comparePassword(password);
-
-        if (!isMatch) {
-            throw new AppError("Invalid credentials", 401);
-        }
-
-        const payload = {
-            userId: user._id,
-            role: user.role,
-        };
-
-        const accessToken = generateAccessToken(payload);
-
-        await user.save();
-
-        return {
-            accessToken
-        };
-    }
-    
 }
 
-export default AuthService;
+export const authService = new AuthService();

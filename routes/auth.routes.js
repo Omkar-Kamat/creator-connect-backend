@@ -1,13 +1,40 @@
 import express from "express";
-import AuthController from "../controllers/auth.controller.js";
+import { authController } from "../controllers/auth.controller.js";
+import { authMiddleware } from "../middlewares/auth.middleware.js";
 
-const router = express.Router();
+export class AuthRoutes {
+    constructor() {
+        this.router = express.Router();
+        this.initializeRoutes();
+    }
 
-router.post("/register", AuthController.register);
+    initializeRoutes() {
+        this.router.post("/signup", authController.signup.bind(authController));
 
-router.post("/verify", AuthController.verifyAccount);
+        this.router.post("/login", authController.login.bind(authController));
 
-router.post("/login", AuthController.login);
+        this.router.get(
+            "/me",
+            authMiddleware.protect.bind(authMiddleware),
+            this.me.bind(this),
+        );
 
+        this.router.post("/logout", authController.logout.bind(authController));
 
-export default router;
+        this.router.post(
+            "/send-otp",
+            authController.sendOtp.bind(authController),
+        );
+
+        this.router.post(
+            "/verify-otp",
+            authController.verifyOtp.bind(authController),
+        );
+    }
+
+    me(req, res) {
+        res.json(req.user);
+    }
+}
+
+export const authRoutes = new AuthRoutes().router;
