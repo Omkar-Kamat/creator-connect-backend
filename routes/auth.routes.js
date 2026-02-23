@@ -33,7 +33,8 @@ export class AuthRoutes {
     }
 
     me(req, res) {
-        res.json(req.user);
+        const token = req.cookies.token;
+        res.json({ ...req.user.toObject(), token });
     }
 }
 

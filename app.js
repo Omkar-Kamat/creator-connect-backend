@@ -3,10 +3,15 @@ import cors from "cors";
 import cookieParser from "cookie-parser";
 import { authRoutes } from "./routes/auth.routes.js";
 import { assetRoutes } from "./routes/asset.routes.js";
+import http from "http";
+import messageRoutes from "./routes/message.routes.js"
+import { initializeSocket } from "./socket/socket.js";
 
 const API_PREFIX = "/api";
 
 const app = express();
+const server = http.createServer(app);
+initializeSocket(server);
 
 app.use(
   cors({
@@ -42,4 +47,6 @@ app.use(`${API_PREFIX}/auth`, authRoutes);
 
 app.use(`${API_PREFIX}/assets`, assetRoutes);
 
-export default app;
+app.use(`${API_PREFIX}/chat`, messageRoutes);
+
+export default server;
