@@ -18,7 +18,8 @@ export class AuthController {
       res.status(201).json({
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        token
       });
 
     } catch (error) {
@@ -45,7 +46,8 @@ export class AuthController {
       res.json({
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        token
       });
 
     } catch (error) {
@@ -127,7 +129,8 @@ export class AuthController {
       res.status(201).json({
         id: user._id,
         name: user.name,
-        email: user.email
+        email: user.email,
+        token
       });
 
     } catch (error) {

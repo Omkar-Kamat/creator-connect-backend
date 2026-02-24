@@ -1,5 +1,5 @@
 import "dotenv/config";
-import app from "./app.js";
+import server from "./app.js";
 import { database } from "./config/db.config.js";
 
 const PORT = process.env.PORT || 5000;
@@ -10,7 +10,7 @@ const startServer = async () => {
 
     await database.connect();
 
-    app.listen(PORT, () => {
+    server.listen(PORT, () => {
       console.log(`Server running on port ${PORT}`);
     });
 
